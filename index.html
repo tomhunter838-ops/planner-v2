@@ -500,16 +500,15 @@ function odLoad(){ odGet(OD.file,function(txt,err){ if(txt){ try{ var data=JSON.
 function odScheduleSave(){ if(!OD.signedIn) return; clearTimeout(OD.saveTimer); OD.saveTimer=setTimeout(function(){ odPut(OD.file, JSON.stringify({days:days,future:future,savedAt:new Date().toISOString()}), function(ok){ if(ok){ lastSync=nowHM(); refreshConnUI(); } }); }, 1500); }
 function odImportV1(){ if(!OD.signedIn){ modalAlert('Connect OneDrive first, then import.'); return; } odGet(OD.v1file,function(txt,err){ if(!txt){ modalAlert('Could not read v1 planner.json'+(err?' ('+err+')':'')+'. It may be under a different app folder; tell me and I will adjust the path.'); return; } var v1; try{ v1=JSON.parse(txt); }catch(e){ modalAlert('v1 file is not readable JSON.'); return; } mergeV1(v1); }); }
 function mergeV1(v1){
-  var src = v1.days || (v1.state&&v1.state.days) || v1.week || v1.tasks || null;
-  var added=0;
-  function pushTask(dayIdx,kind,label){ if(dayIdx<0||dayIdx>6)return; var t=T('',label,null,[]); t.fromV1=true; days[dayIdx][kind].push(t); added++; }
-  if(Array.isArray(src)){
-    src.forEach(function(d,i){ if(i>6)return; ['personal','work'].forEach(function(k){ var arr=d[k]||d[k+'Tasks']||(d.tasks&&d.tasks[k])||[]; if(Array.isArray(arr)) arr.forEach(function(it){ var lbl=(typeof it==='string')?it:(it&&(it.label||it.text||it.title||it.name||it.task)); if(lbl)pushTask(i,k,String(lbl)); }); }); });
-  } else if(src && typeof src==='object'){
-    ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(function(dn,i){ var d=src[dn]||src[dn.toLowerCase()]; if(!d)return; ['personal','work'].forEach(function(k){ var arr=d[k]||[]; if(Array.isArray(arr)) arr.forEach(function(it){ var lbl=(typeof it==='string')?it:(it&&(it.label||it.text||it.title||it.name)); if(lbl)pushTask(i,k,String(lbl)); }); }); });
-  }
-  if(added===0){ modalAlert('Read the v1 file but could not auto-detect this week’s tasks. Top-level keys: ['+Object.keys(v1).join(', ')+']. Send me these and I’ll map the import exactly.'); return; }
-  save(); render(); renderToday(); modalAlert('Imported '+added+' task(s) from v1 (shown in bold with a v1 tag). v1 itself is untouched. Re-sort them however you like.');
+  var tasks = v1.tasks || [];
+  var idxByDate={}; for(var i=0;i<7;i++) idxByDate[isoDay(i)]=i;
+  function v1date(wk,day){ var dt=new Date(wk+'T00:00:00'); if(isNaN(dt.getTime()))return null; dt.setDate(dt.getDate()+(day||0)); return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
+  function mapTask(x){ var slot=(x.time&&x.time.start&&x.time.end)?[x.time.start,x.time.end]:null; var subs=(x.subs||[]).map(function(s){ return {label:(typeof s==='string'?s:(s&&(s.text||s.label)||'')),done:!!(s&&s.done)}; }).filter(function(s){return s.label;}); var t=T('',(x.text||'(untitled)'),slot,subs); t.done=!!x.done; t.fromV1=true; return t; }
+  var added=0, fut=0;
+  tasks.forEach(function(x){ var kind=(x.lane==='work')?'work':'personal'; if(x.week==='future'){ future[kind].push(mapTask(x)); fut++; return; } var dstr=v1date(x.week,x.day); if(dstr && (dstr in idxByDate)){ days[idxByDate[dstr]][kind].push(mapTask(x)); added++; } });
+  if(added===0&&fut===0){ modalAlert('Read v1 ('+tasks.length+' tasks) but none fall in this week ('+isoDay(0)+' to '+isoDay(6)+') or Future. Tell me and I will adjust the week mapping.'); return; }
+  for(var j=0;j<7;j++){ sortDay(days[j].personal); sortDay(days[j].work); }
+  save(); render(); renderToday(); modalAlert('Imported '+added+' task(s) into this week + '+fut+' into Future from v1 (shown in bold). v1 is untouched. Drag to re-sort.');
 }
 function refreshConnUI(){ document.querySelectorAll('.conns').forEach(function(c){c.innerHTML=connectionsHTML();}); }
 
@@ -525,13 +524,13 @@ function calLoad(){ calTokenThen(function(tok){ if(!tok)return; var s=new Date()
 function mapCalToWeek(){ for(var i=0;i<7;i++){ days[i].appts=[]; } calEvents.forEach(function(ev){ if(!ev.start||!ev.start.dateTime)return; var d=ev.start.dateTime.slice(0,10); for(var i=0;i<7;i++){ if(isoDay(i)===d){ days[i].appts.push({start:ev.start.dateTime.slice(11,16),end:(ev.end&&ev.end.dateTime)?ev.end.dateTime.slice(11,16):'',title:ev.subject||'(no subject)',sub:(ev.onlineMeetingProvider&&ev.onlineMeetingProvider!=='unknown')?'Online meeting':''}); } } }); }
 
 /* ===== Fitbit (legacy Web API, implicit grant) ===== */
-var FB={ token:null, signedIn:false }, FB_CLIENT='23PYHQ';
+var FB={ token:null, signedIn:false }, FB_CLIENT='23PYHQ', FB_PROXY='https://fitbit-proxy.tom-f71.workers.dev/';
 var HEALTH={ sleep:'7h 56m', steps:'5,563', rhr:'71', cal:'2,711' };
 function fbToken(){ if(FB.token)return FB.token; try{var t=localStorage.getItem('wp:fb:token'); if(t){FB.token=t;FB.signedIn=true;return t;}}catch(e){} return null; }
 function fbSignIn(){ var redir=encodeURIComponent(location.origin+location.pathname); location.href='https://www.fitbit.com/oauth2/authorize?response_type=token&client_id='+FB_CLIENT+'&redirect_uri='+redir+'&scope='+encodeURIComponent('activity heartrate sleep profile')+'&expires_in=31536000'; }
 function fbSignOut(){ FB.token=null; FB.signedIn=false; try{localStorage.removeItem('wp:fb:token');}catch(e){} refreshConnUI(); }
 function fbHandleRedirect(){ try{ if(location.hash&&location.hash.indexOf('access_token=')>=0){ var p={}; location.hash.substring(1).split('&').forEach(function(kv){var a=kv.split('=');p[a[0]]=decodeURIComponent(a[1]||'');}); if(p.access_token){ FB.token=p.access_token; FB.signedIn=true; try{localStorage.setItem('wp:fb:token',p.access_token);}catch(e){} try{history.replaceState(null,'',location.pathname);}catch(e){} toast('Fitbit connected'); fbLoad(); } } }catch(e){} }
-function fbLoad(){ var tok=fbToken(); if(!tok)return; var h={Authorization:'Bearer '+tok}; fetch('https://api.fitbit.com/1/user/-/activities/date/today.json',{headers:h}).then(function(r){return r.json();}).then(function(j){ if(j&&j.summary){ if(j.summary.steps!=null)HEALTH.steps=Number(j.summary.steps).toLocaleString('en-GB'); if(j.summary.caloriesOut!=null)HEALTH.cal=Number(j.summary.caloriesOut).toLocaleString('en-GB'); if(j.summary.restingHeartRate!=null)HEALTH.rhr=''+j.summary.restingHeartRate; updateHealthUI(); } }).catch(function(){}); fetch('https://api.fitbit.com/1.2/user/-/sleep/date/'+isoDay(todayIdx)+'.json',{headers:h}).then(function(r){return r.json();}).then(function(j){ if(j&&j.summary&&j.summary.totalMinutesAsleep!=null){ var m=j.summary.totalMinutesAsleep; HEALTH.sleep=Math.floor(m/60)+'h '+(m%60)+'m'; updateHealthUI(); } }).catch(function(){}); }
+function fbLoad(){ var tok=fbToken(); if(!tok)return; var h={Authorization:'Bearer '+tok}; fetch(FB_PROXY+'1/user/-/activities/date/today.json',{headers:h}).then(function(r){return r.json();}).then(function(j){ if(j&&j.summary){ if(j.summary.steps!=null)HEALTH.steps=Number(j.summary.steps).toLocaleString('en-GB'); if(j.summary.caloriesOut!=null)HEALTH.cal=Number(j.summary.caloriesOut).toLocaleString('en-GB'); if(j.summary.restingHeartRate!=null)HEALTH.rhr=''+j.summary.restingHeartRate; updateHealthUI(); } }).catch(function(e){ try{console.warn('Fitbit activities load failed',e);}catch(_){} }); fetch(FB_PROXY+'1.2/user/-/sleep/date/'+isoDay(todayIdx)+'.json',{headers:h}).then(function(r){return r.json();}).then(function(j){ if(j&&j.summary&&j.summary.totalMinutesAsleep!=null){ var m=j.summary.totalMinutesAsleep; HEALTH.sleep=Math.floor(m/60)+'h '+(m%60)+'m'; updateHealthUI(); } }).catch(function(e){ try{console.warn('Fitbit sleep load failed',e);}catch(_){} }); }
 function updateHealthUI(){ renderKPI(); if(curView==='health')navTo('health'); refreshConnUI(); }
 var VIEWS=[['today','Today'],['week','Week'],['month','Month'],['journal','Journal'],['health','Health'],['shopping','Shopping'],['finance','Finance'],['more','More']];
 var SECT=['today','week','month','journal','health','review','history','inbox','shopping','finance','photos','why','more'];
