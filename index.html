@@ -97,6 +97,15 @@
   .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:128px;height:30px;background:#15120e;border-radius:0 0 18px 18px;z-index:50;}
   .statusbar{height:44px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 5px;font-size:13px;font-weight:600;z-index:40;}
   .scrollbody{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--tab-h) + 96px);} .scrollbody::-webkit-scrollbar{display:none;}
+  /* Real phones: drop the simulated device frame so the mobile UI fills the screen */
+  @media(max-width:600px){
+    body{padding:0;}
+    .topbar{display:none;}
+    #ios{align-items:stretch;}
+    .phone{width:100%;max-width:100%;height:100vh;height:100dvh;max-height:none;border-radius:0;box-shadow:none;padding:0;background:var(--cream);}
+    .screen{border-radius:0;}
+    .notch,.statusbar{display:none;}
+  }
   .brandrow{display:flex;align-items:center;justify-content:space-between;padding:2px 16px 6px;} .brand{font-size:11px;letter-spacing:3px;color:var(--muted);font-weight:700;}
   .laptopbtn{border:none;background:#efe2cd;color:var(--terra);font-weight:700;font-size:11px;padding:5px 10px;border-radius:14px;cursor:pointer;}
   .syncpill{display:flex;gap:5px;align-items:center;font-size:10px;color:var(--green);background:#e9f0e6;border:1px solid #cfe0c8;padding:3px 8px;border-radius:20px;font-weight:600;margin:0 16px 2px;} .dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
@@ -574,4 +583,5 @@ function setTheme(name){ document.body.dataset.theme=name; try{localStorage.setI
 (function(){ var sw=document.getElementById('swipewrap'),x0=null; sw.addEventListener('touchstart',function(e){ if(isDragging||e.target.closest('.handle'))return; x0=e.touches[0].clientX;},{passive:true}); sw.addEventListener('touchend',function(e){ if(x0===null||isDragging)return; var dx=e.changedTouches[0].clientX-x0; if(typeof sel!=='number'){ if(dx>45)pick(days.length-1); x0=null; return; } if(dx<-45){ if(sel<days.length-1)pick(sel+1); else pick('F'); } else if(dx>45&&sel>0){ pick(sel-1); } x0=null;}); })();
 
 buildNav(); renderThemes(); renderSnaps(); renderBP(); renderPhotos(); renderInbox(); renderShop(); renderKPI(); renderFinance(); render(); navTo('today'); odInit(); if(typeof OD!=='undefined'&&OD.signedIn){ refreshConnUI(); odLoad(); } calInit(); if(typeof CAL!=='undefined'&&CAL.signedIn){ calLoad(); } fbHandleRedirect(); if(fbToken()){ fbLoad(); }
+if(window.matchMedia&&window.matchMedia('(max-width:600px)').matches){ try{ setMode('ios'); }catch(e){} }
 </script>
