@@ -165,6 +165,9 @@
   .conn .cname{font-weight:700;flex:1;} .conn .cmeta{font-size:10.5px;color:var(--muted);}
   .autobadge{font-size:10px;font-weight:800;color:var(--green);background:#e9f0e6;border:1px solid #cfe0c8;border-radius:12px;padding:3px 9px;}
   .savebtn{border:none;background:var(--terra);color:#fff;font-weight:700;font-size:12px;padding:8px 13px;border-radius:14px;cursor:pointer;}
+.wknav{background:rgba(255,255,255,.45);border:1px solid var(--line);border-radius:8px;padding:1px 9px;cursor:pointer;font-size:15px;line-height:1.3;margin:0 5px;color:inherit;font-weight:700}
+.wkreset,.carrybtn{background:rgba(255,255,255,.45);border:1px solid var(--line);border-radius:8px;padding:2px 8px;cursor:pointer;font-size:10.5px;margin-left:6px;color:inherit}
+.movebtn{cursor:pointer;opacity:.5;font-size:13px;padding:0 3px;user-select:none}.movebtn:hover{opacity:1}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
 </head>
@@ -172,11 +175,11 @@
   <div class="topbar">
     <h1>Weekly Planner v2 &mdash; working concept</h1>
     <div class="toggle"><button id="t-laptop" class="on" onclick="setMode('laptop')">&#128187; Laptop</button><button id="t-ios" onclick="setMode('ios')">&#128241; iOS view</button></div>
-    <div class="hint">Fully interactive: add (+), edit (tap a task), delete (&times;), sub-tasks (&#9656;), set time, drag &#8801; to prioritise, HALT check, Minimum-viable-day. Everything saves to this browser. Concept &mdash; not yet wired to live OneDrive/Fitbit.</div>
+    <div class="hint">Fully interactive: add (+), edit (tap a task), delete (&times;), sub-tasks (&#9656;), set time, drag &#8801; to prioritise, HALT check, Minimum-viable-day. Saves to this browser and auto-syncs to OneDrive (planner-v2.json) when connected.</div>
   </div>
 
   <div id="laptop">
-    <div class="lp-head"><div class="range"><span class="wklabel">1&ndash;7 Jun</span> <small>this week</small></div><div style="display:flex;gap:8px"><button class="savebtn" onclick="saveNow()">&#128190; Save</button><button class="figbtn" onclick="genExcel()">&#11015; Excel</button><button class="figbtn" onclick="genBackup()">&#11015; Backup</button><button class="openios" onclick="setMode('ios')">&#128241; Open iOS view</button></div></div>
+    <div class="lp-head"><div class="range"><button class="wknav" onclick="weekNav(-1)" title="Previous week">&#8249;</button><span class="wklabel">1&ndash;7 Jun</span><button class="wknav" onclick="weekNav(1)" title="Next week">&#8250;</button> <small class="wksub">this week</small> <button class="wkreset" onclick="weekReset()" style="display:none">back to this week</button><button class="carrybtn" onclick="carryWeek()" style="display:none">&#10554; move unfinished &rarr; this week</button></div><div style="display:flex;gap:8px"><button class="savebtn" onclick="saveNow()">&#128190; Save</button><button class="figbtn" onclick="genExcel()">&#11015; Excel</button><button class="figbtn" onclick="genBackup()">&#11015; Backup</button><button class="openios" onclick="setMode('ios')">&#128241; Open iOS view</button></div></div>
     <div class="lpnav" id="lpnav"></div>
     <div id="lp-week">
     <div class="lp-bizhead"><span class="bizlabel">Prana Engineering Ltd &mdash; live from Xero <small>Barclays current a/c manual &middot; Xero reconciling (~160 items)</small></span><button id="figbtn" class="figbtn" onclick="toggleFigs()">&#128065; Private view</button></div>
@@ -211,7 +214,7 @@
 
         <section id="v-today" class="hidden"><div class="hdr"><span class="range">Today</span><span class="sub">focus</span></div><div class="todaybody"></div></section>
         <section id="v-week">
-          <div class="hdr"><span class="range wklabel">1&ndash;7 Jun</span><span class="sub">this week</span></div>
+          <div class="hdr"><button class="wknav" onclick="weekNav(-1)">&#8249;</button><span class="range wklabel">1&ndash;7 Jun</span><button class="wknav" onclick="weekNav(1)">&#8250;</button><span class="sub wksub">this week</span><button class="wkreset" onclick="weekReset()" style="display:none">now</button><button class="carrybtn" onclick="carryWeek()" style="display:none">&#10554; this wk</button></div>
           <div class="seg"><span class="chip on">Both</span><span class="chip">Personal <span class="n" id="pn">0</span></span><span class="chip">Work <span class="n" id="wn">0</span></span><span class="mvd" id="mvdbtn" onclick="toggleMVD()">Min day</span></div>
           <div class="daystrip" id="daystrip"></div>
           <div id="swipewrap"><div class="dayview" id="dayview"></div></div>
@@ -303,14 +306,17 @@
 <script>
 function T(emoji,label,slot,subs,opts){ opts=opts||{}; return {emoji:emoji||"",label:label,done:false,slot:slot||null,subs:subs||[],open:false,owner:opts.owner||"",cat:opts.cat||"",defers:opts.defers||0,private:opts.private||false}; }
 function S(label,done){ return {label:label,done:!!done}; }
-function seed(){ return [
-  {d:"Mon",n:1,appts:[{start:"12:30",end:"15:30",title:"Regus Prana BP",sub:"Microsoft Teams"}],
-   personal:[T("📝","Journal entry",null,[]),
-             T("","Vaccine Refusal Letter",["09:00","09:30"],[S("Draft letter",true),S("Attach evidence"),S("Email to GP")],{owner:"Me",cat:"family"}),
-             T("","Check N&G can have Ronnie Corby",null,[],{owner:"Shared",cat:"family"}),
-             T("🚗","Buy new car",null,[S("List 3 models + budget"),S("Book test drive")],{defers:3})],
-   work:[T("","Review BP cashflow model",["08:30","09:30"],[],{cat:"BD"}),
-         T("","Email subcontractor quotes",null,[S("Mech quote",true),S("Elec quote"),S("Plumbing quote")],{cat:"billable"})]},
+var DNAMES=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+function emptyWeek(){ return DNAMES.map(function(d,i){ return {d:d,n:i+1,appts:[],personal:[],work:[],halt:{H:false,A:false,L:false,T:false}}; }); }
+function seed(){ return emptyWeek(); }
+/* Example tasks added during the concept build (not Tom's own). Removed once from saved data; labels that also exist in Tom's real v1 list are deliberately excluded. */
+var DEMO_LABELS=["Journal entry","Check N&G can have Ronnie Corby","Buy new car","Review BP cashflow model","Email subcontractor quotes","NHS Health Visitor date","Site visit notes write-up","Invoice run","Order Ronnie's food","Prana BP - draft proposal","Chase PO approval","Update project tracker","School form deadline","Client call prep","Send revised quote","Weekly shop","Submit timesheet","Wrap up week / review","Walk Ronnie - long route","Tidy garage","Plan next week","Meal prep","Plan Malaga move","Sort life insurance","Book family holiday","Renew PI insurance","Hire part-time admin","Refresh Prana website"];
+var DEMO_APPTS=["Regus Prana BP","Team standup","1:1 with John"];
+function isDemoTask(t){ return !t.fromV1 && DEMO_LABELS.indexOf(t.label)>=0; }
+function purgeDemoFrom(dayObj){ var n=0; ['personal','work'].forEach(function(k){ if(!dayObj[k])return; var before=dayObj[k].length; dayObj[k]=dayObj[k].filter(function(t){return !isDemoTask(t);}); n+=before-dayObj[k].length; }); if(dayObj.appts){ dayObj.appts=dayObj.appts.filter(function(a){return DEMO_APPTS.indexOf(a.title)<0;}); } return n; }
+function purgeDemoAll(){ var n=0; Object.keys(weeks).forEach(function(k){ weeks[k].forEach(function(d){ n+=purgeDemoFrom(d); }); }); n+=purgeDemoFrom(future); demoPurged=true; return n; }
+var __DEAD_SEED=[
+  {d:"Mon",n:1,appts:[],personal:[],work:[]},
   {d:"Tue",n:2,appts:[],
    personal:[T("📝","Journal entry",null,[]),T("","ADHD Doctor",["10:00","10:45"],[],{owner:"Me",cat:"health"}),T("🦷","Dentist",["14:00","14:30"],[]),T("🐾","Ronnie vet appointment",["16:00","16:30"],[]),T("","NHS Health Visitor date",null,[],{owner:"Shared",cat:"family"})],
    work:[T("","Site visit notes write-up",null,[S("Photos",true),S("Issues register"),S("RFIs")],{cat:"admin"}),T("","Invoice run",["17:00","17:30"],[],{cat:"cash"})]},
@@ -320,35 +326,47 @@ function seed(){ return [
   {d:"Thu",n:4,appts:[],personal:[T("📝","Journal entry",null,[]),T("","School form deadline",["09:00","09:15"],[],{owner:"Me",cat:"family"})],work:[T("","Client call prep",["13:00","13:30"],[]),T("","Send revised quote",null,[],{cat:"cash"})]},
   {d:"Fri",n:5,appts:[{start:"14:00",end:"14:30",title:"1:1 with John",sub:"Microsoft Teams"}],personal:[T("📝","Journal entry",null,[]),T("","Weekly shop",null,[])],work:[T("","Submit timesheet",["16:30","16:45"],[],{cat:"admin"}),T("","Wrap up week / review",null,[])]},
   {d:"Sat",n:6,appts:[],personal:[T("📝","Journal entry",null,[]),T("🐾","Walk Ronnie - long route",["09:00","10:00"],[]),T("","Tidy garage",null,[])],work:[]},
-  {d:"Sun",n:7,appts:[],personal:[T("📝","Journal entry",null,[]),T("","Plan next week",null,[]),T("","Meal prep",["11:00","12:00"],[])],work:[]}
-]; }
+  {d:"Sun",n:7,appts:[],personal:[],work:[]}
+];
 var KEY="wp:concept:v2app", THKEY="wp:concept:theme", SNKEY="wp:concept:snap";
-function load(){ try{var r=localStorage.getItem(KEY); if(r) return JSON.parse(r);}catch(e){} return seed(); }
-function save(){ try{localStorage.setItem(KEY,JSON.stringify(days)); saveFuture(); toast();}catch(e){} if(typeof odScheduleSave==='function')odScheduleSave(); }
-var days=load(), sel=0, mode="laptop", addKind="personal", minViable=false, photos=[], bp=[], isDragging=false;
-days.forEach(function(d){ if(!d.halt)d.halt={H:false,A:false,L:false,T:false}; });
+var weeks={}, demoPurged=false;
+function fixWeek(w){ w.forEach(function(d){ if(!d.halt)d.halt={H:false,A:false,L:false,T:false}; if(!d.appts)d.appts=[]; if(!d.personal)d.personal=[]; if(!d.work)d.work=[]; }); return w; }
+function loadState(){ try{ var r=localStorage.getItem(KEY); if(r){ var p=JSON.parse(r);
+  if(Array.isArray(p)){ weeks={}; weeks[curKey()]=fixWeek(p); demoPurged=false; return; }
+  if(p&&p.weeks){ weeks=p.weeks; Object.keys(weeks).forEach(function(k){fixWeek(weeks[k]);}); demoPurged=!!p.demoPurged; return; }
+}}catch(e){} weeks={}; demoPurged=true; }
+function save(){ try{ weeks[curKey()]=days; localStorage.setItem(KEY,JSON.stringify({v:3,weeks:weeks,demoPurged:demoPurged})); saveFuture(); toast();}catch(e){} if(typeof odScheduleSave==='function')odScheduleSave(); }
+var days=null, sel=0, mode="laptop", addKind="personal", minViable=false, photos=[], bp=[], isDragging=false;
 var FKEY="wp:concept:future";
-function seedFuture(){ return {d:"Future", personal:[T('🏖️','Plan Malaga move',null,[S('Visa / residency check'),S('School options'),S('Rental shortlist')]),T('','Sort life insurance',null,[]),T('','Book family holiday',null,[])], work:[T('','Renew PI insurance',null,[]),T('','Hire part-time admin',null,[]),T('','Refresh Prana website',null,[])]}; }
+function seedFuture(){ return {d:"Future", personal:[], work:[]}; }
 function loadFuture(){ try{var r=localStorage.getItem(FKEY); if(r)return JSON.parse(r);}catch(e){} return seedFuture(); }
 function saveFuture(){ try{localStorage.setItem(FKEY,JSON.stringify(future));}catch(e){} }
 function colData(k){ return k==='F'?future:days[k]; }
 var future=loadFuture(); if(!future.d)future.d="Future";
 var inbox=(function(){try{return JSON.parse(localStorage.getItem('wp:concept:inbox'))||[];}catch(e){return[];}})();
-var shopping=(function(){try{return JSON.parse(localStorage.getItem('wp:concept:shop'))||[{label:"Ronnie's food",done:false},{label:"Weekly shop",done:false}];}catch(e){return[];}})();
+var shopping=(function(){try{return JSON.parse(localStorage.getItem('wp:concept:shop'))||[];}catch(e){return[];}})();
 var snaps=(function(){try{return JSON.parse(localStorage.getItem(SNKEY))||[];}catch(e){return[];}})();
 var BPKEY="wp:concept:bp"; try{var _bp=localStorage.getItem(BPKEY); if(_bp)bp=JSON.parse(_bp);}catch(e){}
 var figsVisible=false;
 function mondayOf(d){ var x=new Date(d); var w=(x.getDay()+6)%7; x.setHours(0,0,0,0); x.setDate(x.getDate()-w); return x; }
 var MON3=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-var weekOffset=0, WD=[];
-function recomputeWeek(){ var m=mondayOf(new Date()); m.setDate(m.getDate()+weekOffset*7); WD=[]; for(var i=0;i<7;i++){ var dt=new Date(m); dt.setDate(m.getDate()+i); WD.push(dt); } }
+var weekOffset=0, WD=[], todayIdx=0;
+function isoOf(dt){ return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
+function recomputeWeek(){ var m=mondayOf(new Date()); m.setDate(m.getDate()+weekOffset*7); WD=[]; for(var i=0;i<7;i++){ var dt=new Date(m); dt.setDate(m.getDate()+i); WD.push(dt); } todayIdx=(weekOffset===0)?((new Date().getDay()+6)%7):0; }
 recomputeWeek();
+function curKey(){ return isoOf(WD[0]); }
+function keyAt(off){ var m=mondayOf(new Date()); m.setDate(m.getDate()+off*7); return isoOf(m); }
 function dDate(i){ return WD[i]?WD[i].getDate():(i+1); }
 function dMon(i){ return WD[i]?MON3[WD[i].getMonth()]:'Jun'; }
-function isoDay(i){ return WD[i]?WD[i].getFullYear()+'-'+('0'+(WD[i].getMonth()+1)).slice(-2)+'-'+('0'+WD[i].getDate()).slice(-2):''; }
+function isoDay(i){ return WD[i]?isoOf(WD[i]):''; }
 function weekLabel(){ var a=WD[0],b=WD[6]; if(!a)return ''; return a.getDate()+(a.getMonth()!==b.getMonth()?' '+MON3[a.getMonth()]:'')+'&ndash;'+b.getDate()+' '+MON3[b.getMonth()]; }
-function updateWeekLabels(){ var s=weekLabel(); document.querySelectorAll('.wklabel').forEach(function(e){e.innerHTML=s;}); }
-var todayIdx=(weekOffset===0)?((new Date().getDay()+6)%7):0;
+function weekSub(){ if(weekOffset===0)return 'this week'; if(weekOffset===-1)return 'last week'; if(weekOffset===1)return 'next week'; return Math.abs(weekOffset)+' weeks '+(weekOffset<0?'ago':'ahead'); }
+function updateWeekLabels(){ var s=weekLabel(); document.querySelectorAll('.wklabel').forEach(function(e){e.innerHTML=s;}); document.querySelectorAll('.wksub').forEach(function(e){e.textContent=weekSub();}); document.querySelectorAll('.carrybtn').forEach(function(e){e.style.display=(weekOffset<0)?'':'none';}); document.querySelectorAll('.wkreset').forEach(function(e){e.style.display=(weekOffset!==0)?'':'none';}); }
+function weekNav(delta){ try{ weeks[curKey()]=days; }catch(e){} weekOffset+=delta; recomputeWeek(); var k=curKey(); if(!weeks[k])weeks[k]=emptyWeek(); days=weeks[k]; if(typeof sel==='number')sel=Math.min(sel,6); if(weekOffset>=0 && typeof calEvents!=='undefined' && calEvents.length){ try{mapCalToWeek();}catch(e){} } save(); render(); if(curView==='today')renderToday(); }
+function weekReset(){ if(weekOffset!==0)weekNav(-weekOffset); }
+function carryWeek(){ if(weekOffset>=0)return; modalConfirm('Move all unfinished tasks from this past week into the current week?',function(){ var src=days, tgtKey=keyAt(0); if(!weeks[tgtKey])weeks[tgtKey]=emptyWeek(); var tgt=weeks[tgtKey], n=0; src.forEach(function(d,i){ ['personal','work'].forEach(function(kind){ for(var j=d[kind].length-1;j>=0;j--){ var t=d[kind][j]; if(!t.done){ d[kind].splice(j,1); t.defers=(t.defers||0)+1; tgt[i][kind].push(t); n++; } } }); }); save(); render(); renderToday(); modalAlert(n+' task(s) moved into the current week.'); }); }
+/* ---- initialise state (current week exists by now) ---- */
+loadState(); (function(){ var k=curKey(); if(!weeks[k])weeks[k]=emptyWeek(); days=weeks[k]; if(!demoPurged){ var n=purgeDemoAll(); try{ if(n)console.log('Planner: removed '+n+' example task(s) from the concept build'); }catch(e){} } })();
 var prana={ asOf:"1 Jun 2026", cash:0, invoicesOwed:118236, awaitingCount:13, overdue:78300, overdueCount:10, workingCapital:78824, netEquity:98530, barclaysAccounts:[["Current account",29077.57],["Deposit account",null],["Tax reserve",null]], topInvoices:[["Bridgestone Construction",23736,"due 28 Jun"],["Harty Building Services",22800,"5d overdue"],["Onward Homes",19800,"37d overdue"]] }; /* LIVE from Xero — Prana Engineering Ltd (snapshot; refresh from connector) */
 var malaga={target:60000, saved:21500};                           /* demo placeholder savings target for the Malaga move */
 function money(n){ return figsVisible ? '£'+Number(n).toLocaleString('en-GB',{minimumFractionDigits:0,maximumFractionDigits:2}) : '£xxxxxx'; }
@@ -368,11 +386,11 @@ function rowHTML(t,kind,i){
   var pill=timed?'<span class="slot" data-act="settime">'+t.slot[0]+'–'+t.slot[1]+'</span>':'<span class="slot none" data-act="settime">No time set</span>';
   var sc=t.subs.length, sd=t.subs.filter(function(s){return s.done;}).length;
   var subBtn=sc?'<span class="subtoggle'+(t.open?' open':'')+'" data-act="toggle" title="Sub-tasks">'+sd+'/'+sc+' ▾ subs</span>':'<span class="subtoggle add'+(t.open?' open':'')+'" data-act="toggle" title="Add sub-task">+ sub</span>';
-  var grip=timed?'<span class="lockic" title="scheduled by time">⏰</span>':'<span class="handle" title="Drag to prioritise">≡</span>';
+  var grip='<span class="handle" title="Drag to reorder or onto another day">'+(timed?'⏰':'≡')+'</span>';
   var num=timed?'':'<span class="pri">'+(i+1)+'</span>';
   var tags='';
   var stuck=(t.defers>=3)?'<span class="stuckb" title="moved '+t.defers+' weeks">stuck '+t.defers+'×</span>':'';
-  var head='<div class="task '+kind+(timed?' timed':'')+(t.done?' done':'')+(t.defers>=3?' stuck':'')+'" data-idx="'+i+'">'+num+'<span class="check" data-act="check"></span>'+sym+'<span class="label'+(t.fromV1?' v1':'')+'" data-act="edit">'+esc(t.label)+'</span>'+(t.fromV1?'<span class="v1tag">v1</span>':'')+stuck+(tags?'<span class="tags">'+tags+'</span>':'')+pill+subBtn+grip+'<span class="privtog'+(t.private?' on':'')+'" data-act="private" title="Mark private">'+(t.private?'🔒':'🔓')+'</span><span class="del" data-act="del">×</span></div>';
+  var head='<div class="task '+kind+(timed?' timed':'')+(t.done?' done':'')+(t.defers>=3?' stuck':'')+'" data-idx="'+i+'">'+num+'<span class="check" data-act="check"></span>'+sym+'<span class="label'+(t.fromV1?' v1':'')+'" data-act="edit">'+esc(t.label)+'</span>'+(t.fromV1?'<span class="v1tag">v1</span>':'')+stuck+(tags?'<span class="tags">'+tags+'</span>':'')+pill+subBtn+grip+'<span class="movebtn" data-act="move" title="Move to another day or week">↪</span><span class="privtog'+(t.private?' on':'')+'" data-act="private" title="Mark private">'+(t.private?'🔒':'🔓')+'</span><span class="del" data-act="del">×</span></div>';
   var subs='';
   if(t.open){
     var items=t.subs.map(function(s,j){return '<div class="subrow '+(s.done?'done':'')+'" data-sub="'+j+'"><span class="branch">└</span><span class="subcheck" data-act="subcheck"></span><span class="sublabel">'+esc(s.label)+'</span><span class="subdel" data-act="delsub">×</span></div>';}).join('');
@@ -405,6 +423,7 @@ function attachActions(scope){
       else if(act==='edit'){ modalInput({title:'Edit task',value:t.label,onOK:function(nv){ nv=(nv||'').trim(); if(nv){t.label=nv; done();} }}); }
       else if(act==='del'){ modalConfirm('Delete "'+t.label+'"?',function(){ colData(ctx.day)[ctx.kind].splice(ctx.idx,1); done(); }); }
       else if(act==='addsub'){ modalInput({title:'New sub-task',placeholder:'Sub-task',onOK:function(s){ s=(s||'').trim(); if(s){ t.subs.push(S(s)); t.open=true; done(); } }}); }
+      else if(act==='move'){ modalMove(ctx); }
       else if(act==='settime'){ modalInput({title:'Set time (24h)',value:t.slot?t.slot[0]+'-'+t.slot[1]:'',placeholder:'HH:MM-HH:MM (blank = none)',onOK:function(v){ v=(v||'').trim(); if(v===''){t.slot=null; done(); return;} var m=v.match(/^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/); if(!m){modalAlert('Use the format HH:MM-HH:MM');return;} var sh=+m[1],sm=+m[2],eh=+m[3],em=+m[4]; if(sh>23||eh>23||sm>59||em>59||(eh*60+em)<=(sh*60+sm)){modalAlert('Enter a valid 24h range with end after start');return;} t.slot=[(sh<10?'0'+sh:''+sh)+':'+m[2],(eh<10?'0'+eh:''+eh)+':'+m[4]]; done(); }}); }
     });
   });
@@ -475,16 +494,26 @@ function addBP(){ var s=document.getElementById('bps').value,d=document.getEleme
 function addBPL(){ var s=document.getElementById('bps2').value,d=document.getElementById('bpd2').value; document.getElementById('bps2').value='';document.getElementById('bpd2').value=''; pushBP(s,d); }
 function logSnapshot(){ var p=0,pt=0,w=0,wt=0; days.forEach(function(d){ d.personal.forEach(function(t){pt++;if(t.done)p++;}); d.work.forEach(function(t){wt++;if(t.done)w++;}); }); snaps.unshift({date:new Date().toLocaleDateString('en-GB'),p:p+'/'+pt,w:w+'/'+wt}); try{localStorage.setItem(SNKEY,JSON.stringify(snaps));}catch(e){} renderSnaps(); toast(); }
 function renderSnaps(){ document.querySelectorAll('.snaplist').forEach(function(L){ L.innerHTML = snaps.length ? snaps.slice(0,8).map(function(s){return '<div class="snap"><span><b>'+s.date+'</b></span><span>Personal '+s.p+' · Work '+s.w+'</span></div>';}).join('') : '<div class="snap"><span>No snapshots yet</span><span>tap above to log</span></div>'; }); }
-function resetAll(){ modalConfirm('Reset all concept data to the sample week?',function(){ days=seed(); snaps=[]; try{localStorage.removeItem(KEY);localStorage.removeItem(SNKEY);}catch(e){} render(); renderSnaps(); }); }
+function resetAll(){ modalConfirm('Reset ALL local planner data to empty? (OneDrive copy will be overwritten on next save)',function(){ weeks={}; days=weeks[curKey()]=emptyWeek(); snaps=[]; try{localStorage.removeItem(KEY);localStorage.removeItem(SNKEY);}catch(e){} save(); render(); renderSnaps(); }); }
 function xc(s){ return (s==null?'':(''+s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function downloadFile(name,content,mime){ try{ var b=new Blob([content],{type:mime}); var u=URL.createObjectURL(b); var a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){document.body.removeChild(a); URL.revokeObjectURL(u);},120); toast('Downloaded '+name); }catch(e){ alert('Download failed: '+e); } }
 function genExcel(){ var rows=''; days.forEach(function(day,di){ (day.appts||[]).forEach(function(a){ rows+='<tr><td>'+day.d+' '+dDate(di)+'</td><td style="background:#dce9ee">Appt</td><td></td><td>'+a.start+'-'+a.end+'</td><td>'+xc(a.title)+'</td><td>'+xc(a.sub)+'</td><td></td></tr>'; }); ['personal','work'].forEach(function(kind){ var arr=day[kind].slice(); sortDay(arr); arr.forEach(function(t,i){ var subs=t.subs.map(function(s){return (s.done?'[x] ':'[ ] ')+s.label;}).join(' · '); var bg=kind==='work'?'#eaf1f4':'#f6ece2'; rows+='<tr><td>'+day.d+' '+dDate(di)+'</td><td style="background:'+bg+'">'+(kind==='work'?'Work':'Personal')+'</td><td style="text-align:center">'+(t.slot?'':(i+1))+'</td><td>'+(t.slot?t.slot[0]+'-'+t.slot[1]:'')+'</td><td>'+xc(t.label)+(t.defers>=3?' (STUCK '+t.defers+'x)':'')+'</td><td>'+xc(subs)+'</td><td>'+(t.done?'Done':'')+'</td></tr>'; }); }); }); var p=0,pt=0,w=0,wt=0; days.forEach(function(d){d.personal.forEach(function(t){pt++;if(t.done)p++;});d.work.forEach(function(t){wt++;if(t.done)w++;});}); var head='<table border="1" style="border-collapse:collapse;font-family:Arial;font-size:11pt"><tr><td colspan="7" style="background:#c4632e;color:#fff;font-size:15pt;font-weight:bold;padding:8px">Weekly Planner — '+weekLabel().replace('&ndash;','-')+' '+(WD[0]?WD[0].getFullYear():2026)+' (Prana)</td></tr><tr><td colspan="7" style="background:#efe9dc;padding:6px">Personal done '+p+'/'+pt+' · Work done '+w+'/'+wt+' · Sleep 7h56m · Steps 5,563 · Resting HR 71 · Invoices owed £118,236 (overdue £78,300)</td></tr><tr style="background:#2b2620;color:#ffffff;font-weight:bold"><td>Day</td><td>Type</td><td>Pri</td><td>Time</td><td>Task</td><td>Sub-tasks</td><td>Status</td></tr>'; downloadFile('Prana-weekly-planner.xls','﻿'+head+rows+'</table>','application/vnd.ms-excel'); }
-function genBackup(){ downloadFile('planner-backup-'+new Date().toISOString().slice(0,10)+'.json', JSON.stringify(days,null,2), 'application/json'); }
+function genBackup(){ downloadFile('planner-backup-'+new Date().toISOString().slice(0,10)+'.json', JSON.stringify({weeks:weeks,future:future,demoPurged:demoPurged},null,2), 'application/json'); }
 function closeModal(){ var m=document.querySelector('.modal-ov'); if(m&&m.parentNode)m.parentNode.removeChild(m); }
 function modalInput(o){ closeModal(); var ov=document.createElement('div'); ov.className='modal-ov'; var val=o.value?esc(o.value).replace(/"/g,'&quot;'):''; ov.innerHTML='<div class="modal-card"><div class="modal-t">'+esc(o.title||'')+'</div><input class="modal-in" type="text" value="'+val+'" placeholder="'+(o.placeholder||'')+'"><div class="modal-btns"><button class="modal-cancel">Cancel</button><button class="modal-ok">Save</button></div></div>'; document.body.appendChild(ov); var inp=ov.querySelector('.modal-in'); setTimeout(function(){inp.focus(); inp.select();},20); function ok(){ var v=inp.value; closeModal(); if(o.onOK)o.onOK(v); } ov.querySelector('.modal-ok').onclick=ok; ov.querySelector('.modal-cancel').onclick=closeModal; inp.addEventListener('keydown',function(e){ if(e.key==='Enter')ok(); else if(e.key==='Escape')closeModal(); }); ov.addEventListener('click',function(e){ if(e.target===ov)closeModal(); }); }
 function modalConfirm(title,onOK){ closeModal(); var ov=document.createElement('div'); ov.className='modal-ov'; ov.innerHTML='<div class="modal-card"><div class="modal-t">'+esc(title)+'</div><div class="modal-btns"><button class="modal-cancel">Cancel</button><button class="modal-ok">Confirm</button></div></div>'; document.body.appendChild(ov); ov.querySelector('.modal-ok').onclick=function(){ closeModal(); onOK(); }; ov.querySelector('.modal-cancel').onclick=closeModal; ov.addEventListener('click',function(e){ if(e.target===ov)closeModal(); }); }
 function modalAlert(msg){ closeModal(); var ov=document.createElement('div'); ov.className='modal-ov'; ov.innerHTML='<div class="modal-card"><div class="modal-t">'+esc(msg)+'</div><div class="modal-btns"><button class="modal-ok">OK</button></div></div>'; document.body.appendChild(ov); ov.querySelector('.modal-ok').onclick=closeModal; }
 function modalSymbols(onPick){ closeModal(); var syms=['','📝','💼','📞','📧','🩺','🦷','🐾','🛒','🏠','💷','📅','✈️','🚗','💪','🍽️','🎯','⚠️','❤️','🏖️']; var ov=document.createElement('div'); ov.className='modal-ov'; var grid=syms.map(function(s){return '<button class="symcell" data-s="'+s+'">'+(s===''?'None':s)+'</button>';}).join(''); ov.innerHTML='<div class="modal-card"><div class="modal-t">Task symbol (optional)</div><div class="symgrid">'+grid+'</div><div class="modal-btns"><button class="modal-cancel">Cancel</button></div></div>'; document.body.appendChild(ov); ov.querySelectorAll('.symcell').forEach(function(b){ b.onclick=function(){ closeModal(); onPick(b.getAttribute('data-s')); }; }); ov.querySelector('.modal-cancel').onclick=closeModal; ov.addEventListener('click',function(e){if(e.target===ov)closeModal();}); }
+function modalMove(ctx){ closeModal(); var t=ctx.t; var ov=document.createElement('div'); ov.className='modal-ov';
+  var chips=DNAMES.map(function(d,i){ return '<button class="symcell" data-mv="d'+i+'">'+d+' '+dDate(i)+'</button>'; }).join('')+'<button class="symcell" data-mv="F">Future</button><button class="symcell" data-mv="pw">&#8592; Prev week</button><button class="symcell" data-mv="nw">Next week &#8594;</button>';
+  ov.innerHTML='<div class="modal-card"><div class="modal-t">Move &ldquo;'+esc(t.label)+'&rdquo; to&hellip;</div><div class="symgrid">'+chips+'</div><div class="modal-btns"><button class="modal-cancel">Cancel</button></div></div>'; document.body.appendChild(ov);
+  function doMove(code){ var src=colData(ctx.day)[ctx.kind]; var pos=src.indexOf(t); if(pos>=0)src.splice(pos,1);
+    if(code==='F'){ future[ctx.kind].push(t); }
+    else if(code==='pw'||code==='nw'){ var off=weekOffset+(code==='nw'?1:-1); var k=keyAt(off); if(!weeks[k])weeks[k]=emptyWeek(); var di=(ctx.day==='F')?0:+ctx.day; if(code==='nw'&&!t.done)t.defers=(t.defers||0)+1; weeks[k][di][ctx.kind].push(t); }
+    else { var i=+code.slice(1); days[i][ctx.kind].push(t); sortDay(days[i][ctx.kind]); }
+    save(); render(); renderToday(); toast('Moved'); }
+  ov.querySelectorAll('[data-mv]').forEach(function(b){ b.onclick=function(){ closeModal(); doMove(b.getAttribute('data-mv')); }; });
+  ov.querySelector('.modal-cancel').onclick=closeModal; ov.addEventListener('click',function(e){if(e.target===ov)closeModal();}); }
 var lastSync="09:41";
 function connRow(dot,name,meta){ return '<div class="conn"><span class="cdot '+dot+'"></span><span class="cname">'+name+'</span><span class="cmeta">'+meta+'</span></div>'; }
 function connectionsHTML(){ var odOn=(typeof OD!=='undefined')&&OD.signedIn; var calOn=(typeof CAL!=='undefined')&&CAL.signedIn; var fbOn=(typeof FB!=='undefined')&&FB.signedIn; return '<div class="jcard"><div class="dt" style="display:flex;justify-content:space-between;align-items:center">Connections <span class="autobadge">Autosave on</span></div>'+connRow(odOn?'ok':'off','OneDrive (personal)',odOn?('planner-v2.json · synced '+lastSync):'not connected')+connRow(calOn?'ok':'off','Outlook calendar (Prana)',calOn?'next 30 days · live':'not connected')+connRow('ok','Xero','Prana Engineering Ltd · live')+connRow(fbOn?'ok':'off','Fitbit',fbOn?'connected':'not connected')+'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'+(odOn?'<button class="btn-soft" onclick="odSignOut()">Disconnect OneDrive</button>':'<button class="savebtn" onclick="odSignIn()">🔵 Connect OneDrive</button>')+(calOn?'<button class="btn-soft" onclick="calSignOut()">Disconnect Outlook</button>':'<button class="btn-soft" onclick="calSignIn()">📅 Connect Outlook</button>')+(fbOn?'<button class="btn-soft" onclick="fbSignOut()">Disconnect Fitbit</button>':'<button class="btn-soft" onclick="fbSignIn()">⌚ Connect Fitbit</button>')+'<button class="btn-soft" onclick="odImportV1()">⬇ Import this week from v1</button><button class="btn-soft" onclick="refreshConn()">🔄 Refresh</button><button class="savebtn" onclick="saveNow()">💾 Save now</button></div><p style="font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.5">OneDrive syncs planner-v2.json across devices; Outlook (Prana work account) drops your next 30 days onto the week; Fitbit feeds the Health rings. “Import this week from v1” merges v1 tasks in bold without touching v1. Sign-in works on the deployed https URL.</p></div>'; }
@@ -505,10 +534,17 @@ function odSignOut(){ try{ if(OD.app&&OD.account) OD.app.logoutPopup({account:OD
 function odTokenThen(cb){ if(!OD.app||!OD.account){ cb(null); return; } OD.app.acquireTokenSilent({scopes:OD_SCOPES,account:OD.account}).then(function(r){cb(r.accessToken);}).catch(function(){ OD.app.acquireTokenPopup({scopes:OD_SCOPES}).then(function(r){cb(r.accessToken);}).catch(function(){cb(null);}); }); }
 function odGet(fname,cb){ odTokenThen(function(tok){ if(!tok){cb(null,'no-token');return;} fetch('https://graph.microsoft.com/v1.0/me/drive/special/approot:/'+fname+':/content',{headers:{Authorization:'Bearer '+tok}}).then(function(r){ if(r.status===404){cb(null,'not-found');return;} if(!r.ok){cb(null,'http-'+r.status);return;} return r.text().then(function(t){cb(t,null);}); }).catch(function(){cb(null,'network');}); }); }
 function odPut(fname,content,cb){ odTokenThen(function(tok){ if(!tok){if(cb)cb(false,'no-token');return;} fetch('https://graph.microsoft.com/v1.0/me/drive/special/approot:/'+fname+':/content',{method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:content}).then(function(r){ if(cb)cb(r.ok, r.ok?null:'http-'+r.status); }).catch(function(){ if(cb)cb(false,'network'); }); }); }
-function odLoad(){ odGet(OD.file,function(txt,err){ if(txt){ try{ var data=JSON.parse(txt); if(data&&data.days){ days=data.days; if(data.future)future=data.future; days.forEach(function(d){ if(!d.halt)d.halt={H:false,A:false,L:false,T:false}; }); lastSync=nowHM(); render(); renderToday(); toast('Loaded from OneDrive'); } }catch(e){} } else if(err==='not-found'){ toast('No OneDrive file yet — will create on first save'); odScheduleSave(); } refreshConnUI(); }); }
-function odScheduleSave(){ if(!OD.signedIn) return; clearTimeout(OD.saveTimer); OD.saveTimer=setTimeout(function(){ odPut(OD.file, JSON.stringify({days:days,future:future,savedAt:new Date().toISOString()}), function(ok){ if(ok){ lastSync=nowHM(); refreshConnUI(); } }); }, 1500); }
+function odLoad(){ odGet(OD.file,function(txt,err){ if(txt){ try{ var data=JSON.parse(txt);
+  if(data&&data.weeks){ weeks=data.weeks; Object.keys(weeks).forEach(function(k){fixWeek(weeks[k]);}); demoPurged=!!data.demoPurged; }
+  else if(data&&data.days){ weeks={}; weeks[keyAt(0)]=fixWeek(data.days); demoPurged=!!data.demoPurged; }
+  if(data&&data.future)future=data.future;
+  var k=curKey(); if(!weeks[k])weeks[k]=emptyWeek(); days=weeks[k];
+  if(!demoPurged){ odPut('planner-v2-backup-pre-cleanup-'+new Date().toISOString().slice(0,10)+'.json', txt, function(){}); var n=purgeDemoAll(); if(n)toast('Removed '+n+' example task(s) from the concept build'); save(); }
+  lastSync=nowHM(); render(); renderToday(); toast('Loaded from OneDrive'); }catch(e){} } else if(err==='not-found'){ toast('No OneDrive file yet — will create on first save'); odScheduleSave(); } refreshConnUI(); }); }
+function odScheduleSave(){ if(!OD.signedIn) return; clearTimeout(OD.saveTimer); OD.saveTimer=setTimeout(function(){ odPut(OD.file, JSON.stringify({days:(weeks[keyAt(0)]||days),future:future,weeks:weeks,demoPurged:demoPurged,savedAt:new Date().toISOString()}), function(ok){ if(ok){ lastSync=nowHM(); refreshConnUI(); } }); }, 1500); }
 function odImportV1(){ if(!OD.signedIn){ modalAlert('Connect OneDrive first, then import.'); return; } odGet(OD.v1file,function(txt,err){ if(!txt){ modalAlert('Could not read v1 planner.json'+(err?' ('+err+')':'')+'. It may be under a different app folder; tell me and I will adjust the path.'); return; } var v1; try{ v1=JSON.parse(txt); }catch(e){ modalAlert('v1 file is not readable JSON.'); return; } mergeV1(v1); }); }
 function mergeV1(v1){
+  if(weekOffset!==0)weekReset();
   var tasks = v1.tasks || [];
   var idxByDate={}; for(var i=0;i<7;i++) idxByDate[isoDay(i)]=i;
   function v1date(wk,day){ var dt=new Date(wk+'T00:00:00'); if(isNaN(dt.getTime()))return null; dt.setDate(dt.getDate()+(day||0)); return dt.getFullYear()+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+('0'+dt.getDate()).slice(-2); }
@@ -539,14 +575,14 @@ function fbToken(){ if(FB.token)return FB.token; try{var t=localStorage.getItem(
 function fbSignIn(){ var redir=encodeURIComponent(location.origin+location.pathname); location.href='https://www.fitbit.com/oauth2/authorize?response_type=token&client_id='+FB_CLIENT+'&redirect_uri='+redir+'&scope='+encodeURIComponent('activity heartrate sleep profile')+'&expires_in=31536000'; }
 function fbSignOut(){ FB.token=null; FB.signedIn=false; try{localStorage.removeItem('wp:fb:token');}catch(e){} refreshConnUI(); }
 function fbHandleRedirect(){ try{ if(location.hash&&location.hash.indexOf('access_token=')>=0){ var p={}; location.hash.substring(1).split('&').forEach(function(kv){var a=kv.split('=');p[a[0]]=decodeURIComponent(a[1]||'');}); if(p.access_token){ FB.token=p.access_token; FB.signedIn=true; try{localStorage.setItem('wp:fb:token',p.access_token);}catch(e){} try{history.replaceState(null,'',location.pathname);}catch(e){} toast('Fitbit connected'); fbLoad(); } } }catch(e){} }
-function fbLoad(){ var tok=fbToken(); if(!tok)return; var h={Authorization:'Bearer '+tok}; fetch(FB_PROXY+'1/user/-/activities/date/today.json',{headers:h}).then(function(r){return r.json();}).then(function(j){ if(j&&j.summary){ if(j.summary.steps!=null)HEALTH.steps=Number(j.summary.steps).toLocaleString('en-GB'); if(j.summary.caloriesOut!=null)HEALTH.cal=Number(j.summary.caloriesOut).toLocaleString('en-GB'); if(j.summary.restingHeartRate!=null)HEALTH.rhr=''+j.summary.restingHeartRate; updateHealthUI(); } }).catch(function(e){ try{console.warn('Fitbit activities load failed',e);}catch(_){} }); fetch(FB_PROXY+'1.2/user/-/sleep/date/'+isoDay(todayIdx)+'.json',{headers:h}).then(function(r){return r.json();}).then(function(j){ if(j&&j.summary&&j.summary.totalMinutesAsleep!=null){ var m=j.summary.totalMinutesAsleep; HEALTH.sleep=Math.floor(m/60)+'h '+(m%60)+'m'; updateHealthUI(); } }).catch(function(e){ try{console.warn('Fitbit sleep load failed',e);}catch(_){} }); }
+function fbLoad(){ var tok=fbToken(); if(!tok)return; var h={Authorization:'Bearer '+tok}; fetch(FB_PROXY+'1/user/-/activities/date/today.json',{headers:h}).then(function(r){return r.json();}).then(function(j){ if(j&&j.summary){ if(j.summary.steps!=null)HEALTH.steps=Number(j.summary.steps).toLocaleString('en-GB'); if(j.summary.caloriesOut!=null)HEALTH.cal=Number(j.summary.caloriesOut).toLocaleString('en-GB'); if(j.summary.restingHeartRate!=null)HEALTH.rhr=''+j.summary.restingHeartRate; updateHealthUI(); } }).catch(function(e){ try{console.warn('Fitbit activities load failed',e);}catch(_){} }); fetch(FB_PROXY+'1.2/user/-/sleep/date/'+isoOf(new Date())+'.json',{headers:h}).then(function(r){return r.json();}).then(function(j){ if(j&&j.summary&&j.summary.totalMinutesAsleep!=null){ var m=j.summary.totalMinutesAsleep; HEALTH.sleep=Math.floor(m/60)+'h '+(m%60)+'m'; updateHealthUI(); } }).catch(function(e){ try{console.warn('Fitbit sleep load failed',e);}catch(_){} }); }
 function updateHealthUI(){ renderKPI(); if(curView==='health')navTo('health'); refreshConnUI(); }
 var VIEWS=[['today','Today'],['week','Week'],['month','Month'],['journal','Journal'],['health','Health'],['shopping','Shopping'],['finance','Finance'],['more','More']];
 var SECT=['today','week','month','journal','health','review','history','inbox','shopping','finance','photos','why','more'];
 var curView='today';
 function buildNav(){ var chips=VIEWS.map(function(v){return '<button class="navchip" data-view="'+v[0]+'" onclick="navTo(\''+v[0]+'\')">'+v[1]+'</button>';}).join(''); var tn=document.getElementById('topnav'); if(tn)tn.innerHTML=chips; var ln=document.getElementById('lpnav'); if(ln)ln.innerHTML=chips; }
 function setActiveNav(name){ var nn=VIEWS.map(function(v){return v[0];}); var a=nn.indexOf(name)>=0?name:'more'; document.querySelectorAll('.navchip').forEach(function(c){c.classList.toggle('on',c.dataset.view===a);}); document.querySelectorAll('.tab[data-view]').forEach(function(t){t.classList.toggle('on',t.dataset.view===a);}); }
-function navTo(name){ curView=name; goTab(name); setLaptopView(name); setActiveNav(name); }
+function navTo(name){ curView=name; if(name==='today'&&weekOffset!==0){weekReset();} goTab(name); setLaptopView(name); setActiveNav(name); }
 function setLaptopView(name){ var w=document.getElementById('lp-week'), v=document.getElementById('lp-view'); if(!w||!v)return; if(name==='week'){ w.classList.remove('hidden'); v.classList.add('hidden'); return; } w.classList.add('hidden'); v.classList.remove('hidden'); if(name==='today'){ v.innerHTML='<div class="lpview-head">Today · '+colData(todayIdx).d+' '+colData(todayIdx).n+' Jun</div><div class="todaybody"></div>'; renderToday(); return; } var lbl=(VIEWS.filter(function(x){return x[0]===name;})[0]||['',name])[1]; v.innerHTML='<div class="lpview-head">'+lbl+'</div>'+viewHTML(name); renderBP(); renderPhotos(); renderSnaps(); renderThemes(); renderFinance(); renderInbox(); renderShop(); }
 function monthHTML(){ var cells=''; for(var d=1;d<=30;d++){ cells+='<div class="mcell'+(d<=7?' on':'')+'">'+d+'</div>'; } return '<div class="jcard"><div class="dt">June 2026</div><div class="mgrid"><div class="mh">M</div><div class="mh">T</div><div class="mh">W</div><div class="mh">T</div><div class="mh">F</div><div class="mh">S</div><div class="mh">S</div>'+cells+'</div><p style="font-size:11px;color:var(--muted);margin-top:8px">This week highlighted. Full month scheduling comes from the live planner.</p></div>'; }
 function viewHTML(name){
@@ -585,3 +621,5 @@ function setTheme(name){ document.body.dataset.theme=name; try{localStorage.setI
 buildNav(); renderThemes(); renderSnaps(); renderBP(); renderPhotos(); renderInbox(); renderShop(); renderKPI(); renderFinance(); render(); navTo('today'); odInit(); if(typeof OD!=='undefined'&&OD.signedIn){ refreshConnUI(); odLoad(); } calInit(); if(typeof CAL!=='undefined'&&CAL.signedIn){ calLoad(); } fbHandleRedirect(); if(fbToken()){ fbLoad(); }
 if(window.matchMedia&&window.matchMedia('(max-width:600px)').matches){ try{ setMode('ios'); }catch(e){} }
 </script>
+</body>
+</html>
