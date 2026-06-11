@@ -174,7 +174,7 @@
   <div class="topbar">
     <h1>Weekly Planner v2</h1>
     <div class="toggle"><button id="t-laptop" class="on" onclick="setMode('laptop')">&#128187; Laptop</button><button id="t-ios" onclick="setMode('ios')">&#128241; iOS view</button></div>
-    <div class="hint">Fully interactive: add (+), edit (tap a task), delete (&times;), sub-tasks (&#9656;), set time, drag &#8801; to prioritise, HALT check, Minimum-viable-day. Saves to this browser and auto-syncs to OneDrive (planner-v2.json) when connected.</div>
+    <div class="hint">Fully interactive: add (+), edit (tap a task), delete (&times;), sub-tasks (&#9656;), set time, drag &#8801; to prioritise. Saves to this browser and auto-syncs to OneDrive (planner-v2.json) when connected.</div>
   </div>
 
   <div id="laptop">
@@ -274,7 +274,8 @@
           <div class="jcard"><div class="dt">Export &amp; backup</div><p style="margin-bottom:8px">Download a styled Excel of your week, or a full JSON backup of all data.</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-soft" onclick="genExcel()">&#11015; Export to Excel</button><button class="btn-soft" onclick="genBackup()">&#11015; Backup (JSON)</button></div></div>
           <div class="jcard"><div class="dt">Reset demo</div><p><button class="btn-soft" onclick="resetAll()">Reset concept data</button></p></div>
         </section>
-        <section id="v-month" class="hidden"><div class="hdr"><span class="range">Month</span><span class="sub">Jun 2026</span></div><div class="vbody" data-view="month"></div></section>
+        <section id="v-month" class="hidden"><div class="hdr"><span class="range">Month</span><span class="sub">2 back \u00b7 8 ahead</span></div><div class="vbody" data-view="month"></div></section>
+        <section id="v-bigpic" class="hidden"><div class="hdr"><span class="range">Big picture</span><span class="sub">ongoing</span></div><div class="vbody" data-view="bigpic"></div></section>
         <section id="v-why" class="hidden"><div class="hdr"><span class="range">Why</span></div><div class="vbody" data-view="why"></div></section>
         <section id="v-history" class="hidden"><div class="hdr"><span class="range">History</span></div><div class="vbody" data-view="history"></div></section>
         <section id="v-inbox" class="hidden"><div class="hdr"><span class="range">Inbox</span></div><div class="vbody" data-view="inbox"></div></section>
@@ -331,9 +332,9 @@ var weeks={}, demoPurged=false, recur=[];
 function fixWeek(w){ w.forEach(function(d){ if(!d.halt)d.halt={H:false,A:false,L:false,T:false}; if(!d.appts)d.appts=[]; if(!d.personal)d.personal=[]; if(!d.work)d.work=[]; }); return w; }
 function loadState(){ try{ var r=localStorage.getItem(KEY); if(r){ var p=JSON.parse(r);
   if(Array.isArray(p)){ weeks={}; weeks[curKey()]=fixWeek(p); demoPurged=false; return; }
-  if(p&&p.weeks){ weeks=p.weeks; Object.keys(weeks).forEach(function(k){fixWeek(weeks[k]);}); demoPurged=!!p.demoPurged; recur=p.recur||[]; return; }
+  if(p&&p.weeks){ weeks=p.weeks; Object.keys(weeks).forEach(function(k){fixWeek(weeks[k]);}); demoPurged=!!p.demoPurged; recur=p.recur||[]; if(p.bigpic)bigpic=p.bigpic; return; }
 }}catch(e){} weeks={}; demoPurged=true; }
-function save(){ try{ weeks[curKey()]=days; localStorage.setItem(KEY,JSON.stringify({v:3,weeks:weeks,demoPurged:demoPurged,recur:recur})); saveFuture(); toast();}catch(e){} if(typeof odScheduleSave==='function')odScheduleSave(); }
+function save(){ try{ weeks[curKey()]=days; localStorage.setItem(KEY,JSON.stringify({v:3,weeks:weeks,demoPurged:demoPurged,recur:recur,bigpic:bigpic})); saveFuture(); toast();}catch(e){} if(typeof odScheduleSave==='function')odScheduleSave(); }
 var days=null, sel=0, mode="laptop", addKind="personal", minViable=false, photos=[], bp=[], isDragging=false;
 var FKEY="wp:concept:future";
 function seedFuture(){ return {d:"Future", personal:[], work:[]}; }
@@ -362,7 +363,7 @@ function weekSub(){ if(weekOffset===0)return 'this week'; if(weekOffset===-1)ret
 function updateWeekLabels(){ var s=weekLabel(); document.querySelectorAll('.wklabel').forEach(function(e){e.innerHTML=s;}); document.querySelectorAll('.wksub').forEach(function(e){e.textContent=weekSub();}); document.querySelectorAll('.carrybtn').forEach(function(e){e.style.display=(weekOffset<0)?'':'none';}); document.querySelectorAll('.wkreset').forEach(function(e){e.style.display=(weekOffset!==0)?'':'none';}); }
 function spawnRecur(w){ if(!recur.length)return; recur.forEach(function(r){ var ds=(r.freq==='d')?[0,1,2,3,4,5,6]:[r.day||0]; ds.forEach(function(di){ w[di][r.kind||'personal'].push({label:r.label,emoji:r.icon||'',done:false,slot:r.slot||null,subs:(r.subs||[]).map(function(s){return {label:s,done:false};}),open:false,defers:0,fromRec:r.id}); }); }); }
 function ensureWeek(k){ if(!weeks[k]){ weeks[k]=emptyWeek(); if(k>=keyAt(0)) spawnRecur(weeks[k]); } return weeks[k]; }
-function weekNav(delta){ try{ weeks[curKey()]=days; }catch(e){} weekOffset+=delta; recomputeWeek(); var k=curKey(); ensureWeek(k); days=weeks[k]; if(typeof sel==='number')sel=Math.min(sel,6); if(weekOffset>=0 && typeof calEvents!=='undefined' && calEvents.length){ try{mapCalToWeek();}catch(e){} } save(); render(); if(curView==='today')renderToday(); }
+function weekNav(delta){ try{ weeks[curKey()]=days; }catch(e){} weekOffset+=delta; recomputeWeek(); var k=curKey(); ensureWeek(k); days=weeks[k]; if(typeof sel==='number')sel=Math.min(sel,6); if(typeof calEvents!=='undefined' && calEvents.length){ try{mapCalToWeek();}catch(e){} } save(); render(); if(curView==='today')renderToday(); }
 function weekReset(){ if(weekOffset!==0)weekNav(-weekOffset); }
 function carryWeek(){ if(weekOffset>=0)return; modalConfirm('Move all unfinished tasks from this past week into the current week?',function(){ var src=days, tgtKey=keyAt(0); ensureWeek(tgtKey); var tgt=weeks[tgtKey], n=0; src.forEach(function(d,i){ ['personal','work'].forEach(function(kind){ for(var j=d[kind].length-1;j>=0;j--){ var t=d[kind][j]; if(!t.done){ d[kind].splice(j,1); t.defers=(t.defers||0)+1; tgt[i][kind].push(t); n++; } } }); }); save(); render(); renderToday(); modalAlert(n+' task(s) moved into the current week.'); }); }
 /* ---- initialise state (current week exists by now) ---- */
@@ -456,21 +457,24 @@ function renderLaptop(){
   attachAll(g);
 }
 function renderStrip(){ document.getElementById('daystrip').innerHTML=days.map(function(day,i){ var cnt=day.personal.length+day.work.length; return '<div class="daypill '+(i===sel?'sel':'')+(weekOffset===0&&i===todayIdx?' tdy':'')+'" onclick="pick('+i+')"><span class="d">'+day.d+'</span><span class="n">'+dDate(i)+'</span>'+(cnt?'<span class="bdg"></span>':'')+'</div>'; }).join('')+'<div class="daypill fut '+(sel==='F'?'sel':'')+'" onclick="pick(\'F\')"><span class="d">Fut</span><span class="n">&#8734;</span></div>'; }
-function haltHTML(day){ if(!day.halt)day.halt={H:false,A:false,L:false,T:false}; var defs=[['H','Hungry'],['A','Angry'],['L','Lonely'],['T','Tired']]; return '<div class="halt"><div class="hh">Daily check &middot; HALT</div><div class="haltchips">'+defs.map(function(d){return '<span class="hc '+(day.halt[d[0]]?'on':'')+'" data-halt="'+d[0]+'">'+d[1]+'</span>';}).join('')+'</div></div>'; }
 function dayHTML(idx){ var isF=(idx==='F'); var day=colData(idx), total=day.personal.length+day.work.length;
   var h='<div class="daytitle"><h2>'+(isF?'Future':(day.d+' '+dDate(idx)+' '+dMon(idx)))+'</h2><span class="meta">'+(isF?'spans weeks':(total+' tasks'+(minViable?' · min day':'')))+'</span></div>';
-  if(!isF) h+=haltHTML(day);
   h+='<div class="reorder-hint">'+(isF?'Tasks here carry across weeks — drag ≡ to prioritise or pull into a day.':'Drag ≡ to reorder, or onto another day (laptop Week) · tap to edit, ▸ sub-tasks, × delete.')+'</div>';
   h+=apptsHTML(idx)+sectionHTML(idx,'personal')+sectionHTML(idx,'work');
   if(!total) h+='<div class="ph"><div class="big">'+(isF?'🗓️':'☀️')+'</div><p>'+(isF?'No future tasks yet. Add one below.':'Nothing scheduled. Add one below.')+'</p></div>';
   return h; }
-function attachHalt(scope,day,fn){ scope.querySelectorAll('.hc').forEach(function(c){ c.addEventListener('click',function(){ var k=c.dataset.halt; day.halt[k]=!day.halt[k]; save(); fn(); }); }); }
-function renderDay(){ var dv=document.getElementById('dayview'); if(!dv)return; dv.innerHTML=dayHTML(sel); attachAll(dv); if(sel!=='F')attachHalt(dv,colData(sel),renderDay);
-  var pn=document.getElementById('pn'); if(pn)pn.textContent=days.reduce(function(s,d){return s+d.personal.length;},0);
-  var wn=document.getElementById('wn'); if(wn)wn.textContent=days.reduce(function(s,d){return s+d.work.length;},0);
-  var nt=document.getElementById('newtask'); if(nt)nt.placeholder='Add task to '+(sel==='F'?'Future':(colData(sel).d==='Mon'?'Monday':colData(sel).d))+'…'; }
-function renderToday(){ document.querySelectorAll('.todaybody').forEach(function(c){ c.innerHTML=dayHTML(todayIdx); attachAll(c); attachHalt(c,colData(todayIdx),renderToday); }); var nt=document.getElementById('newtask'); if(nt&&curView==='today')nt.placeholder='Add task to today ('+colData(todayIdx).d+')…'; }
-function pick(i){ sel=i; renderStrip(); renderDay(); }
+function weekDayHTML(i){ var day=days[i]; var isT=(weekOffset===0&&i===todayIdx); var total=day.personal.length+day.work.length;
+ return '<div class="daytitle" id="dayblock'+i+'" style="margin-top:14px"><h2 style="font-size:17px'+(isT?';color:var(--terra)':'')+'">'+day.d+' '+dDate(i)+' '+dMon(i)+(isT?' \u00b7 today':'')+'</h2><span class="meta">'+total+' task'+(total===1?'':'s')+'</span></div>'+apptsHTML(i)+sectionHTML(i,'personal')+sectionHTML(i,'work'); }
+function renderDay(){ var dv=document.getElementById('dayview'); if(!dv)return;
+ var h='<div class="reorder-hint">Whole week below \u2014 tap a day chip to jump \u00b7 \u21aa moves a task \u00b7 tap a label to edit.</div>';
+ for(var i=0;i<7;i++)h+=weekDayHTML(i);
+ h+='<div class="daytitle" id="dayblockF" style="margin-top:18px"><h2 style="font-size:17px">Future \u221e</h2><span class="meta">spans weeks</span></div>'+sectionHTML('F','personal')+sectionHTML('F','work');
+ dv.innerHTML=h; attachAll(dv);
+ var pn=document.getElementById('pn'); if(pn)pn.textContent=days.reduce(function(s,d){return s+d.personal.length;},0);
+ var wn=document.getElementById('wn'); if(wn)wn.textContent=days.reduce(function(s,d){return s+d.work.length;},0);
+ var nt=document.getElementById('newtask'); if(nt)nt.placeholder='Add task to '+(sel==='F'?'Future':colData(sel).d)+'\u2026'; }
+function renderToday(){ document.querySelectorAll('.todaybody').forEach(function(c){ c.innerHTML=dayHTML(todayIdx); attachAll(c); }); var nt=document.getElementById('newtask'); if(nt&&curView==='today')nt.placeholder='Add task to today ('+colData(todayIdx).d+')…'; }
+function pick(i){ sel=i; renderStrip(); var el=document.getElementById('dayblock'+i); if(el)el.scrollIntoView({behavior:'smooth',block:'start'}); var nt=document.getElementById('newtask'); if(nt)nt.placeholder='Add task to '+(i==='F'?'Future':colData(i).d)+'\u2026'; }
 function render(){ updateWeekLabels(); if(mode==='laptop') renderLaptop(); else { renderStrip(); renderDay(); } }
 function toggleMVD(){ minViable=!minViable; document.getElementById('mvdbtn').classList.toggle('on',minViable); render(); }
 
@@ -482,7 +486,7 @@ function goTab(name){
   if(name==='today')renderToday();
   if(name==='review')renderSnaps();
   if(name==='finance')renderFinance();
-  if(['month','history','inbox','shopping'].indexOf(name)>=0){ var vb=document.querySelector('#v-'+name+' .vbody'); if(vb){ vb.innerHTML=viewHTML(name); renderSnaps(); renderInbox(); renderShop(); } }
+  if(['month','bigpic','history','inbox','shopping'].indexOf(name)>=0){ var vb=document.querySelector('#v-'+name+' .vbody'); if(vb){ vb.innerHTML=viewHTML(name); renderSnaps(); renderInbox(); renderShop(); } }
 }
 
 function addPhotos(ev){ var files=ev.target.files; for(var i=0;i<files.length;i++){ photos.push(URL.createObjectURL(files[i])); } renderPhotos(); toast('Photo added'); }
@@ -572,10 +576,11 @@ function odLoad(){ odGet(OD.file,function(txt,err){ if(txt){ try{ var data=JSON.
   else if(data&&data.days){ weeks={}; weeks[keyAt(0)]=fixWeek(data.days); demoPurged=!!data.demoPurged; }
   if(data&&data.future)future=data.future;
   if(data&&data.recur)recur=data.recur;
+  if(data&&data.bigpic)bigpic=data.bigpic;
   var k=curKey(); ensureWeek(k); days=weeks[k];
   if(!demoPurged){ odPut('planner-v2-backup-pre-cleanup-'+new Date().toISOString().slice(0,10)+'.json', txt, function(){}); var n=purgeDemoAll(); if(n)toast('Removed '+n+' example task(s) from the concept build'); save(); }
   lastSync=nowHM(); render(); renderToday(); toast('Loaded from OneDrive'); }catch(e){} } else if(err==='not-found'){ toast('No OneDrive file yet — will create on first save'); odScheduleSave(); } refreshConnUI(); }); }
-function odScheduleSave(){ if(!OD.signedIn) return; clearTimeout(OD.saveTimer); OD.saveTimer=setTimeout(function(){ odPut(OD.file, JSON.stringify({days:(weeks[keyAt(0)]||days),future:future,weeks:weeks,demoPurged:demoPurged,recur:recur,savedAt:new Date().toISOString()}), function(ok){ if(ok){ lastSync=nowHM(); refreshConnUI(); } }); }, 1500); }
+function odScheduleSave(){ if(!OD.signedIn) return; clearTimeout(OD.saveTimer); OD.saveTimer=setTimeout(function(){ odPut(OD.file, JSON.stringify({days:(weeks[keyAt(0)]||days),future:future,weeks:weeks,demoPurged:demoPurged,recur:recur,bigpic:bigpic,savedAt:new Date().toISOString()}), function(ok){ if(ok){ lastSync=nowHM(); refreshConnUI(); } }); }, 1500); }
 function odImportV1(){ if(!OD.signedIn){ modalAlert('Connect OneDrive first, then import.'); return; } odGet(OD.v1file,function(txt,err){ if(!txt){ modalAlert('Could not read v1 planner.json'+(err?' ('+err+')':'')+'. It may be under a different app folder; tell me and I will adjust the path.'); return; } var v1; try{ v1=JSON.parse(txt); }catch(e){ modalAlert('v1 file is not readable JSON.'); return; } mergeV1(v1); }); }
 function mergeV1(v1){
   if(weekOffset!==0)weekReset();
@@ -599,7 +604,7 @@ function calInit(){ try{ if(typeof msal==='undefined')return false; if(!CAL.app)
 function calSignIn(){ if(!calInit()){ modalAlert('Microsoft library not loaded — works on the deployed https URL.'); return; } CAL.app.loginPopup({scopes:CAL_SCOPES,prompt:'select_account',loginHint:'tom@pranabuildingservices.onmicrosoft.com'}).then(function(res){ CAL.account=res.account; CAL.signedIn=true; toast('Outlook calendar connected'); refreshConnUI(); calLoad(); }).catch(function(){ toast('Cancelled'); }); }
 function calSignOut(){ try{ if(CAL.app&&CAL.account)CAL.app.logoutPopup({account:CAL.account}); }catch(e){} CAL.signedIn=false; CAL.account=null; refreshConnUI(); }
 function calTokenThen(cb){ if(!CAL.app||!CAL.account){cb(null);return;} CAL.app.acquireTokenSilent({scopes:CAL_SCOPES,account:CAL.account}).then(function(r){cb(r.accessToken);}).catch(function(){ CAL.app.acquireTokenPopup({scopes:CAL_SCOPES,loginHint:'tom@pranabuildingservices.onmicrosoft.com'}).then(function(r){cb(r.accessToken);}).catch(function(){cb(null);}); }); }
-function calLoad(){ calTokenThen(function(tok){ if(!tok)return; var s=new Date(); s.setHours(0,0,0,0); var e=new Date(s.getTime()+30*864e5); var url='https://graph.microsoft.com/v1.0/me/calendarView?startDateTime='+s.toISOString()+'&endDateTime='+e.toISOString()+'&$select=subject,start,end,isAllDay,onlineMeetingProvider&$orderby=start/dateTime&$top=150'; fetch(url,{headers:{Authorization:'Bearer '+tok,Prefer:'outlook.timezone="Europe/London"'}}).then(function(r){return r.json();}).then(function(j){ if(j&&j.value){ calEvents=j.value; mapCalToWeek(); render(); renderToday(); toast(j.value.length+' calendar events loaded'); } }).catch(function(){}); }); }
+function calLoad(){ calTokenThen(function(tok){ if(!tok)return; var s=new Date(); s.setHours(0,0,0,0); s=new Date(s.getTime()-14*864e5); var e=new Date(s.getTime()+77*864e5); var url='https://graph.microsoft.com/v1.0/me/calendarView?startDateTime='+s.toISOString()+'&endDateTime='+e.toISOString()+'&$select=subject,start,end,isAllDay,onlineMeetingProvider&$orderby=start/dateTime&$top=250'; fetch(url,{headers:{Authorization:'Bearer '+tok,Prefer:'outlook.timezone="Europe/London"'}}).then(function(r){return r.json();}).then(function(j){ if(j&&j.value){ calEvents=j.value; mapCalToWeek(); render(); renderToday(); toast(j.value.length+' calendar events loaded'); } }).catch(function(){}); }); }
 function mapCalToWeek(){ for(var i=0;i<7;i++){ days[i].appts=[]; } calEvents.forEach(function(ev){ if(!ev.start||!ev.start.dateTime)return; var d=ev.start.dateTime.slice(0,10); for(var i=0;i<7;i++){ if(isoDay(i)===d){ days[i].appts.push({start:ev.start.dateTime.slice(11,16),end:(ev.end&&ev.end.dateTime)?ev.end.dateTime.slice(11,16):'',title:ev.subject||'(no subject)',sub:(ev.onlineMeetingProvider&&ev.onlineMeetingProvider!=='unknown')?'Online meeting':''}); } } }); }
 
 /* ===== Fitbit (legacy Web API, implicit grant) ===== */
@@ -611,14 +616,37 @@ function fbSignOut(){ FB.token=null; FB.signedIn=false; try{localStorage.removeI
 function fbHandleRedirect(){ try{ if(location.hash&&location.hash.indexOf('access_token=')>=0){ var p={}; location.hash.substring(1).split('&').forEach(function(kv){var a=kv.split('=');p[a[0]]=decodeURIComponent(a[1]||'');}); if(p.access_token){ FB.token=p.access_token; FB.signedIn=true; try{localStorage.setItem('wp:fb:token',p.access_token);}catch(e){} try{history.replaceState(null,'',location.pathname);}catch(e){} toast('Fitbit connected'); fbLoad(); } } }catch(e){} }
 function fbLoad(){ var tok=fbToken(); if(!tok)return; var h={Authorization:'Bearer '+tok}; fetch(FB_PROXY+'1/user/-/activities/date/today.json',{headers:h}).then(function(r){return r.json();}).then(function(j){ if(j&&j.summary){ if(j.summary.steps!=null)HEALTH.steps=Number(j.summary.steps).toLocaleString('en-GB'); if(j.summary.caloriesOut!=null)HEALTH.cal=Number(j.summary.caloriesOut).toLocaleString('en-GB'); if(j.summary.restingHeartRate!=null)HEALTH.rhr=''+j.summary.restingHeartRate; updateHealthUI(); } }).catch(function(e){ try{console.warn('Fitbit activities load failed',e);}catch(_){} }); fetch(FB_PROXY+'1.2/user/-/sleep/date/'+isoOf(new Date())+'.json',{headers:h}).then(function(r){return r.json();}).then(function(j){ if(j&&j.summary&&j.summary.totalMinutesAsleep!=null){ var m=j.summary.totalMinutesAsleep; HEALTH.sleep=Math.floor(m/60)+'h '+(m%60)+'m'; updateHealthUI(); } }).catch(function(e){ try{console.warn('Fitbit sleep load failed',e);}catch(_){} }); }
 function updateHealthUI(){ renderKPI(); if(curView==='health')navTo('health'); refreshConnUI(); }
-var VIEWS=[['today','Today'],['week','Week'],['month','Month'],['journal','Journal'],['health','Health'],['shopping','Shopping'],['finance','Finance'],['more','More']];
-var SECT=['today','week','month','journal','health','review','history','inbox','shopping','finance','photos','why','more'];
+var VIEWS=[['today','Today'],['week','Week'],['month','Month'],['bigpic','Big picture'],['journal','Journal'],['health','Health'],['shopping','Shopping'],['finance','Finance'],['more','More']];
+var SECT=['today','week','month','bigpic','journal','health','review','history','inbox','shopping','finance','photos','why','more'];
 var curView='today';
 function buildNav(){ var chips=VIEWS.map(function(v){return '<button class="navchip" data-view="'+v[0]+'" onclick="navTo(\''+v[0]+'\')">'+v[1]+'</button>';}).join(''); var tn=document.getElementById('topnav'); if(tn)tn.innerHTML=chips; var ln=document.getElementById('lpnav'); if(ln)ln.innerHTML=chips; }
 function setActiveNav(name){ var nn=VIEWS.map(function(v){return v[0];}); var a=nn.indexOf(name)>=0?name:'more'; document.querySelectorAll('.navchip').forEach(function(c){c.classList.toggle('on',c.dataset.view===a);}); document.querySelectorAll('.tab[data-view]').forEach(function(t){t.classList.toggle('on',t.dataset.view===a);}); }
 function navTo(name){ curView=name; if(name==='today'&&weekOffset!==0){weekReset();} goTab(name); setLaptopView(name); setActiveNav(name); }
 function setLaptopView(name){ var w=document.getElementById('lp-week'), v=document.getElementById('lp-view'); if(!w||!v)return; if(name==='week'){ w.classList.remove('hidden'); v.classList.add('hidden'); return; } w.classList.add('hidden'); v.classList.remove('hidden'); if(name==='today'){ v.innerHTML='<div class="lpview-head">Today · '+colData(todayIdx).d+' '+dDate(todayIdx)+' '+dMon(todayIdx)+'</div><div class="todaybody"></div>'; renderToday(); return; } var lbl=(VIEWS.filter(function(x){return x[0]===name;})[0]||['',name])[1]; v.innerHTML='<div class="lpview-head">'+lbl+'</div>'+viewHTML(name); renderBP(); renderPhotos(); renderSnaps(); renderThemes(); renderFinance(); renderInbox(); renderShop(); }
-function monthHTML(){ var cells=''; for(var d=1;d<=30;d++){ cells+='<div class="mcell'+(d<=7?' on':'')+'">'+d+'</div>'; } return '<div class="jcard"><div class="dt">June 2026</div><div class="mgrid"><div class="mh">M</div><div class="mh">T</div><div class="mh">W</div><div class="mh">T</div><div class="mh">F</div><div class="mh">S</div><div class="mh">S</div>'+cells+'</div><p style="font-size:11px;color:var(--muted);margin-top:8px">This week highlighted. Full month scheduling comes from the live planner.</p></div>'; }
+function monthHTML(){ var cal={}; (calEvents||[]).forEach(function(ev){ if(ev.start&&ev.start.dateTime){ var d=ev.start.dateTime.slice(0,10); (cal[d]=cal[d]||[]).push(ev); } });
+ var html='';
+ for(var off=-2; off<=8; off++){ var mk=keyAt(off); var m=new Date(mk+'T00:00:00'); var end=new Date(m.getTime()+6*864e5);
+  var wk=weeks[mk]; var items=[];
+  for(var i=0;i<7;i++){ var dt=new Date(m.getTime()+i*864e5); var iso=isoOf(dt);
+    (cal[iso]||[]).forEach(function(ev){ items.push({d:DNAMES[i],appt:true,label:(ev.start.dateTime?ev.start.dateTime.slice(11,16)+' ':'')+(ev.subject||'')}); });
+    if(wk){ ['personal','work'].forEach(function(kind){ wk[i][kind].forEach(function(t){ items.push({d:DNAMES[i],done:!!t.done,label:t.label,kind:kind}); }); }); }
+  }
+  var open=0,donen=0,ap=0; items.forEach(function(x){ if(x.appt)ap++; else if(x.done)donen++; else open++; });
+  var lbl=m.getDate()+' '+MON3[m.getMonth()]+' \u2013 '+end.getDate()+' '+MON3[end.getMonth()];
+  var tag=off===0?' \u00b7 <b style="color:var(--terra)">this week</b>':(off===-1?' \u00b7 last week':(off===1?' \u00b7 next week':''));
+  var rows=items.slice(0,14).map(function(x){ return '<div style="font-size:11.5px;line-height:1.7'+(x.done?';text-decoration:line-through;opacity:.5':'')+'">'+(x.appt?'\ud83d\udcc5 ':'')+'<b style="font-weight:700">'+x.d+'</b> \u00b7 '+esc(x.label)+(x.kind==='work'?' <small style="color:var(--muted)">work</small>':'')+'</div>'; }).join('');
+  if(items.length>14) rows+='<div style="font-size:10px;color:var(--muted)">+'+(items.length-14)+' more \u2014 open the week</div>';
+  if(!items.length) rows='<div style="font-size:11px;color:var(--muted)">Nothing planned yet.</div>';
+  html+='<div class="jcard"><div class="dt" style="display:flex;justify-content:space-between;align-items:center"><span>'+lbl+tag+'</span><button class="btn-soft" style="font-size:10px" onclick="gotoWeek('+off+')">Open week</button></div><div style="font-size:10px;color:var(--muted);margin-bottom:5px">'+open+' open \u00b7 '+donen+' done \u00b7 '+ap+' appointment'+(ap===1?'':'s')+'</div>'+rows+'</div>'; }
+ return '<p style="font-size:11px;color:var(--muted);margin:0 0 8px">Two weeks back, eight ahead \u2014 planner tasks plus Outlook appointments. Use \u201cOpen week\u201d to jump in and edit.</p>'+html; }
+function gotoWeek(off){ if(off!==weekOffset)weekNav(off-weekOffset); navTo('week'); }
+var bigpic=[];
+function bigpicHTML(){ var rows=bigpic.map(function(b,i){ return '<div class="bizrow" style="align-items:center;border-bottom:1px solid var(--line);padding:7px 0"><span style="display:flex;gap:9px;align-items:flex-start;flex:1"><span class="check'+(b.done?' on':'')+'" onclick="bpTick('+i+')"></span><span style="flex:1;font-size:13px;cursor:pointer'+(b.done?';text-decoration:line-through;opacity:.55':'')+'" onclick="bpEdit('+i+')">'+esc(b.label)+'</span></span><span style="cursor:pointer;opacity:.5;padding:0 5px;font-size:15px" onclick="bpDel('+i+')">\u00d7</span></div>'; }).join('');
+ return '<div class="jcard"><div class="dt">Big picture \u2014 ongoing</div><p style="font-size:11px;color:var(--muted);margin:0 0 8px">Life and business themes that aren\u2019t tied to a day \u2014 the Malaga move, long-term Prana ideas, things to keep considering. Tick or delete when no longer relevant. To act on one this week, add it as a normal task too.</p><div class="bprow" style="margin-bottom:6px"><input class="addinput2" id="bpinput" placeholder="Add an ongoing item\u2026" style="flex:1" onkeydown="if(event.key===\'Enter\')bpAdd()"><button class="btn-soft" onclick="bpAdd()">Add</button></div>'+(rows||'<p style="font-size:12px;color:var(--muted)">Nothing here yet.</p>')+'</div>'; }
+function bpAdd(){ var el=document.getElementById('bpinput'); var v=(el&&el.value||'').trim(); if(!v)return; bigpic.push({label:v,done:false,created:new Date().toISOString().slice(0,10)}); save(); navTo('bigpic'); toast('Added to Big picture'); }
+function bpTick(i){ if(bigpic[i]){ bigpic[i].done=!bigpic[i].done; save(); navTo('bigpic'); } }
+function bpDel(i){ var b=bigpic[i]; modalConfirm('Remove \u201c'+(b?b.label:'')+'\u201d from Big picture?',function(){ bigpic.splice(i,1); save(); navTo('bigpic'); }); }
+function bpEdit(i){ var b=bigpic[i]; if(!b)return; modalInput({title:'Edit item',value:b.label,onOK:function(nv){ nv=(nv||'').trim(); if(nv){ b.label=nv; save(); navTo('bigpic'); } }}); }
 function viewHTML(name){
   if(name==='journal') return '<div class="jcard"><div class="dt">Mon 1 Jun</div><p>Tap to write today\'s entry. One line a day keeps the streak.</p><div style="margin-top:8px"><label class="btn-soft">📷 Attach photo<input type="file" accept="image/*" style="display:none" onchange="addPhotos(event)"></label></div></div><div class="jcard"><div class="dt">Sun 31 May</div><p>Good weekend. Ronnie settled well. Chase the vet about the appointment time.</p></div><div class="sectlabel" style="margin:14px 2px 6px">Why — what this is all for</div><div class="jcard"><div class="dt">🏖️ Malaga move</div><p>Build the runway to relocate the family.</p></div><div class="jcard"><div class="dt">👨‍👩‍👧 Family &amp; presence</div><p>Be present, not just busy — protect bedtime and weekends.</p></div><div class="jcard"><div class="dt">🧠 Health &amp; recovery</div><p>Sleep, movement, stability — the base everything stands on.</p></div><div class="jcard"><div class="dt">🏗️ Prana growth</div><p>Billable delivery, paid invoices, less admin.</p></div>';
   if(name==='health') return '<div class="jcard"><div class="dt">Today · Fitbit</div><div class="bizrow"><span>Sleep</span><b>'+HEALTH.sleep+'</b></div><div class="bizrow"><span>Steps</span><b>'+HEALTH.steps+'</b></div><div class="bizrow"><span>Resting HR</span><b>'+HEALTH.rhr+' bpm</b></div><div class="bizrow"><span>Calories</span><b>'+HEALTH.cal+'</b></div></div><div class="jcard"><div class="dt">Blood pressure (manual)</div><div class="bprow"><input placeholder="Sys" inputmode="numeric"><span>/</span><input placeholder="Dia" inputmode="numeric"><button class="bpadd" onclick="addBPFrom(this)">Log</button></div><div class="bplist" style="margin-top:8px"></div></div><div class="jcard"><div class="dt">Sunday 19:00 report</div><p>Weekly summary (sleep consistency, resting-HR &amp; BP trend, zone-2 minutes, strength) scheduled for Sunday 19:00.</p></div>';
@@ -626,6 +654,7 @@ function viewHTML(name){
   if(name==='finance') return '<div class="financebody"></div>';
   if(name==='photos') return '<div style="margin-bottom:8px"><label class="btn-soft">📷 Add photo<input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos(event)"></label></div><div class="photogrid"></div>';
   if(name==='month') return monthHTML();
+  if(name==='bigpic') return bigpicHTML();
   if(name==='why') return '<div class="jcard"><div class="dt">Why — what this is all for</div><p>The anchors behind the weekly grind.</p></div><div class="jcard"><div class="dt">🏖️ Malaga move</div><p>Build the runway to relocate the family.</p></div><div class="jcard"><div class="dt">👨‍👩‍👧 Family &amp; presence</div><p>Be present, not just busy — protect bedtime and weekends.</p></div><div class="jcard"><div class="dt">🧠 Health &amp; recovery</div><p>Sleep, movement, stability — the base everything stands on.</p></div><div class="jcard"><div class="dt">🏗️ Prana growth</div><p>Billable delivery, paid invoices, less admin.</p></div>';
   if(name==='history') return '<div class="jcard"><div class="dt">History — past snapshots</div><p>Logged daily snapshots and completed weeks appear here.</p></div><div class="snaplist"></div>';
   if(name==='inbox') return '<div class="jcard"><div class="dt">Inbox — quick capture</div><p>Brain-dump anything; sort it later.</p><div class="bprow" style="margin-top:8px"><input class="addinput2" placeholder="Capture a thought…" style="flex:1" onkeydown="if(event.key===\'Enter\')addInboxFrom(this)"><button class="bpadd" onclick="addInboxFrom(this.previousElementSibling)">Add</button></div></div><div class="inboxlist"></div>';
